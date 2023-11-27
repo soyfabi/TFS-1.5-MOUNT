@@ -33,6 +33,7 @@
 #include "quests.h"
 #include "globalevent.h"
 #include "monster.h"
+#include "mounts.h"
 #include "events.h"
 #include "scheduler.h"
 #include "databasetasks.h"
@@ -117,6 +118,9 @@ void sighupHandler()
 	g_weapons->reload();
 	g_weapons->loadDefaults();
 	std::cout << "Reloaded weapons." << std::endl;
+	
+	//g_game.mounts.reload();
+	std::cout << "Reloaded mounts." << std::endl;
 
 	g_game.quests.reload();
 	std::cout << "Reloaded quests." << std::endl;

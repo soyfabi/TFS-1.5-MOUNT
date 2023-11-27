@@ -103,6 +103,8 @@ void Game::setGameState(GameState_t newState)
 			g_chat->load();
 
 			map.spawns.startup();
+			
+			mounts.loadFromXml();
 
 			raids.loadFromXml();
 			raids.startup();
@@ -3185,6 +3187,16 @@ void Game::playerRequestOutfit(uint32_t playerId)
 	player->sendOutfitWindow();
 }
 
+void Game::playerToggleMount(uint32_t playerId, bool mount)
+{
+	Player* player = getPlayerByID(playerId);
+	if (!player) {
+		return;
+	}
+
+	player->toggleMount(mount);
+}
+
 void Game::playerChangeOutfit(uint32_t playerId, Outfit_t outfit)
 {
 	if (!g_config.getBoolean(ConfigManager::ALLOW_CHANGEOUTFIT)) {
@@ -3194,6 +3206,38 @@ void Game::playerChangeOutfit(uint32_t playerId, Outfit_t outfit)
 	Player* player = getPlayerByID(playerId);
 	if (!player) {
 		return;
+	}
+	
+	const Outfit* playerOutfit = Outfits::getInstance().getOutfitByLookType(player->getSex(), outfit.lookType);
+	if (!playerOutfit) {
+		outfit.lookMount = 0;
+	}
+
+	if (outfit.lookMount != 0) {
+		Mount* mount = mounts.getMountByClientID(outfit.lookMount);
+		if (!mount) {
+			return;
+		}
+
+		if (!player->hasMount(mount)) {
+			return;
+		}
+
+		if (player->isMounted()) {
+			Mount* prevMount = mounts.getMountByID(player->getCurrentMount());
+			if (prevMount) {
+				changeSpeed(player, mount->speed - prevMount->speed);
+			}
+
+			player->setCurrentMount(mount->id);
+		}
+		else {
+			player->setCurrentMount(mount->id);
+			outfit.lookMount = 0;
+		}
+	}
+	else if (player->isMounted()) {
+		player->dismount();
 	}
 
 	if (player->canWear(outfit.lookType, outfit.lookAddons)) {
@@ -4987,6 +5031,7 @@ bool Game::reload(ReloadTypes_t reloadType)
 		case RELOAD_TYPE_GLOBALEVENTS: return g_globalEvents->reload();
 		case RELOAD_TYPE_ITEMS: return Item::items.reload();
 		case RELOAD_TYPE_MONSTERS: return g_monsters.reload();
+		case RELOAD_TYPE_MOUNTS: return mounts.reload();
 		case RELOAD_TYPE_MOVEMENTS: return g_moveEvents->reload();
 		case RELOAD_TYPE_NPCS: {
 			Npcs::reload();
@@ -5031,6 +5076,7 @@ bool Game::reload(ReloadTypes_t reloadType)
 			Npcs::reload();
 			raids.reload() && raids.startup();
 			Item::items.reload();
+			mounts.reload();
 			quests.reload();
 			g_config.reload();
 			g_events->load();
@@ -5057,6 +5103,7 @@ bool Game::reload(ReloadTypes_t reloadType)
 			raids.reload() && raids.startup();
 			g_talkActions->reload();
 			Item::items.reload();
+			mounts.reload();
 			g_weapons->reload();
 			g_weapons->clear(true);
 			g_weapons->loadDefaults();
